@@ -31,6 +31,9 @@ export default function Step4Camera() {
   const currentPart = parts[currentIndex];
   const capturedImage = photos[currentPart.id];
 
+  const frontCameraParts: (keyof Photos)[] = ['faceFront', 'faceSide', 'faceSideOpposite'];
+  const facingMode = frontCameraParts.includes(currentPart.id) ? 'user' : 'environment';
+
   const capture = useCallback(() => {
     const imageSrc = webcamRef.current?.getScreenshot();
     if (imageSrc) {
@@ -77,7 +80,8 @@ export default function Step4Camera() {
         daysRemaining = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
       }
 
-      const response = await fetch('/api/analyze', {
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || '';
+      const response = await fetch(`${baseUrl}/api/analyze`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -117,7 +121,7 @@ export default function Step4Camera() {
   }
 
   return (
-    <div className="flex flex-col items-center justify-start p-4 w-full max-w-md mx-auto space-y-6 animate-in fade-in slide-in-from-right-4 duration-300 pb-24">
+    <div className="flex flex-col items-center justify-start p-4 w-full max-w-md mx-auto space-y-3 animate-in fade-in slide-in-from-right-4 duration-300 pb-8">
       
       {/* Progress Indicator */}
       <div className="w-full flex justify-between items-center px-2">
@@ -132,7 +136,7 @@ export default function Step4Camera() {
         <p className="text-xs text-slate-500 px-4">{currentPart.desc}</p>
       </div>
 
-      <div className="w-full bg-slate-900 rounded-2xl overflow-hidden shadow-lg relative aspect-[3/4] flex items-center justify-center">
+      <div className="w-full bg-slate-900 rounded-2xl overflow-hidden shadow-lg relative aspect-[4/3] flex items-center justify-center">
         {capturedImage ? (
           <img src={capturedImage} alt="Captured" className="w-full h-full object-cover" />
         ) : (
@@ -140,7 +144,7 @@ export default function Step4Camera() {
             audio={false}
             ref={webcamRef}
             screenshotFormat="image/jpeg"
-            videoConstraints={{ facingMode: "user" }}
+            videoConstraints={{ facingMode }}
             className="w-full h-full object-cover"
           />
         )}
