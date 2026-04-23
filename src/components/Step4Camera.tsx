@@ -136,7 +136,7 @@ export default function Step4Camera() {
         <p className="text-xs text-slate-500 px-4">{currentPart.desc}</p>
       </div>
 
-      <div className="w-full bg-slate-900 rounded-2xl overflow-hidden shadow-lg relative aspect-[4/3] flex items-center justify-center">
+      <div className="w-full bg-slate-900 rounded-2xl overflow-hidden shadow-lg relative h-52 flex items-center justify-center">
         {capturedImage ? (
           <img src={capturedImage} alt="Captured" className="w-full h-full object-cover" />
         ) : (
