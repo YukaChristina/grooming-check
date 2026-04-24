@@ -13,11 +13,39 @@ function groupScore(keys: string[], parts: Record<string, number | string>): num
   return scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : null;
 }
 
+function groupHasUndiagnosable(keys: string[], parts: Record<string, number | string>): boolean {
+  return keys.some(k => parts[k] === 'undiagnosable');
+}
+
+function groupVisible(keys: string[], parts: Record<string, number | string>): boolean {
+  return keys.some(k => k in parts);
+}
+
 function groupFeedback(keys: string[], partFeedback?: Record<string, string>): string {
   return keys
     .filter(k => partFeedback?.[k])
     .map(k => partFeedback![k])
     .join(' ');
+}
+
+function PartCard({ label, score, feedback, undiagnosable }: {
+  label: string;
+  score: number | null;
+  feedback: string;
+  undiagnosable: boolean;
+}) {
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 p-4">
+      <div className="flex justify-between items-center">
+        <span className="font-bold text-slate-800">{label}</span>
+        {undiagnosable
+          ? <span className="text-xs font-bold text-slate-400 bg-slate-100 px-2 py-1 rounded">判定不能</span>
+          : <span className="font-black text-lg text-blue-600">{score}点</span>
+        }
+      </div>
+      {!undiagnosable && feedback && <p className="text-xs text-slate-500 mt-1">{feedback}</p>}
+    </div>
+  );
 }
 
 export default function Step5Results() {
@@ -74,44 +102,40 @@ export default function Step5Results() {
           </h3>
           <div className="space-y-2">
 
-            {faceScore !== null && (
-              <div className="bg-white rounded-xl border border-slate-200 p-4">
-                <div className="flex justify-between items-center">
-                  <span className="font-bold text-slate-800">顔</span>
-                  <span className="font-black text-lg text-blue-600">{faceScore}点</span>
-                </div>
-                {faceFeedback && <p className="text-xs text-slate-500 mt-1">{faceFeedback}</p>}
-              </div>
+            {groupVisible(FACE_PARTS, score.parts) && (
+              <PartCard
+                label="顔"
+                score={faceScore}
+                feedback={faceFeedback}
+                undiagnosable={faceScore === null && groupHasUndiagnosable(FACE_PARTS, score.parts)}
+              />
             )}
 
-            {handsScore !== null && (
-              <div className="bg-white rounded-xl border border-slate-200 p-4">
-                <div className="flex justify-between items-center">
-                  <span className="font-bold text-slate-800">手・爪</span>
-                  <span className="font-black text-lg text-blue-600">{handsScore}点</span>
-                </div>
-                {handsFeedback && <p className="text-xs text-slate-500 mt-1">{handsFeedback}</p>}
-              </div>
+            {('hands' in score.parts) && (
+              <PartCard
+                label="手・爪"
+                score={handsScore}
+                feedback={handsFeedback}
+                undiagnosable={score.parts['hands'] === 'undiagnosable'}
+              />
             )}
 
-            {bodyScore !== null && (
-              <div className="bg-white rounded-xl border border-slate-200 p-4">
-                <div className="flex justify-between items-center">
-                  <span className="font-bold text-slate-800">上半身・全身</span>
-                  <span className="font-black text-lg text-blue-600">{bodyScore}点</span>
-                </div>
-                {bodyFeedback && <p className="text-xs text-slate-500 mt-1">{bodyFeedback}</p>}
-              </div>
+            {groupVisible(BODY_PARTS, score.parts) && (
+              <PartCard
+                label="上半身・全身"
+                score={bodyScore}
+                feedback={bodyFeedback}
+                undiagnosable={bodyScore === null && groupHasUndiagnosable(BODY_PARTS, score.parts)}
+              />
             )}
 
-            {shoesScore !== null && (
-              <div className="bg-white rounded-xl border border-slate-200 p-4">
-                <div className="flex justify-between items-center">
-                  <span className="font-bold text-slate-800">靴・足元</span>
-                  <span className="font-black text-lg text-blue-600">{shoesScore}点</span>
-                </div>
-                {shoesFeedback && <p className="text-xs text-slate-500 mt-1">{shoesFeedback}</p>}
-              </div>
+            {('shoes' in score.parts) && (
+              <PartCard
+                label="靴・足元"
+                score={shoesScore}
+                feedback={shoesFeedback}
+                undiagnosable={score.parts['shoes'] === 'undiagnosable'}
+              />
             )}
 
             {skippedParts
