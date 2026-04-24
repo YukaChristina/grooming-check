@@ -4,13 +4,21 @@ import { useAppStore } from '@/store/useAppStore';
 import { Star, AlertCircle, RefreshCw } from 'lucide-react';
 
 const FACE_PARTS = ['faceFront', 'faceSide', 'faceSideOpposite'];
+const BODY_PARTS = ['upperBody', 'fullBody'];
 
-const OTHER_PARTS = [
-  { key: 'hands', label: '手・爪' },
-  { key: 'upperBody', label: '上半身' },
-  { key: 'fullBody', label: '全身' },
-  { key: 'shoes', label: '靴・足元' },
-];
+function groupScore(keys: string[], parts: Record<string, number | string>): number | null {
+  const scores = keys
+    .filter(k => typeof parts[k] === 'number')
+    .map(k => parts[k] as number);
+  return scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : null;
+}
+
+function groupFeedback(keys: string[], partFeedback?: Record<string, string>): string {
+  return keys
+    .filter(k => partFeedback?.[k])
+    .map(k => partFeedback![k])
+    .join(' ');
+}
 
 export default function Step5Results() {
   const { score, resetApp, skippedParts } = useAppStore();
@@ -27,20 +35,17 @@ export default function Step5Results() {
 
   const starCount = score.total ? (score.total >= 85 ? 5 : score.total >= 75 ? 4 : 3) : 0;
 
-  // 顔グループ：正面・側面・反対側面のスコア平均とフィードバック結合
-  const faceScores = FACE_PARTS
-    .filter(p => typeof score.parts[p] === 'number')
-    .map(p => score.parts[p] as number);
-  const faceScore = faceScores.length > 0
-    ? Math.round(faceScores.reduce((a, b) => a + b, 0) / faceScores.length)
-    : null;
-  const faceFeedback = FACE_PARTS
-    .filter(p => score.partFeedback?.[p])
-    .map(p => score.partFeedback![p])
-    .join(' ');
+  const faceScore = groupScore(FACE_PARTS, score.parts);
+  const faceFeedback = groupFeedback(FACE_PARTS, score.partFeedback);
 
-  // 顔以外：スコアが数値のもののみ表示
-  const evaluatedOtherParts = OTHER_PARTS.filter(({ key }) => typeof score.parts[key] === 'number');
+  const bodyScore = groupScore(BODY_PARTS, score.parts);
+  const bodyFeedback = groupFeedback(BODY_PARTS, score.partFeedback);
+
+  const handsScore = typeof score.parts['hands'] === 'number' ? score.parts['hands'] as number : null;
+  const handsFeedback = score.partFeedback?.['hands'] ?? '';
+
+  const shoesScore = typeof score.parts['shoes'] === 'number' ? score.parts['shoes'] as number : null;
+  const shoesFeedback = score.partFeedback?.['shoes'] ?? '';
 
   return (
     <div className="flex flex-col items-center justify-start w-full max-w-md mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500 pb-24">
@@ -79,31 +84,46 @@ export default function Step5Results() {
               </div>
             )}
 
-            {evaluatedOtherParts.map(({ key, label }) => (
-              <div key={key} className="bg-white rounded-xl border border-slate-200 p-4">
+            {handsScore !== null && (
+              <div className="bg-white rounded-xl border border-slate-200 p-4">
                 <div className="flex justify-between items-center">
-                  <span className="font-bold text-slate-800">{label}</span>
-                  <span className="font-black text-lg text-blue-600">{score.parts[key] as number}点</span>
+                  <span className="font-bold text-slate-800">手・爪</span>
+                  <span className="font-black text-lg text-blue-600">{handsScore}点</span>
                 </div>
-                {score.partFeedback?.[key] && (
-                  <p className="text-xs text-slate-500 mt-1">{score.partFeedback[key]}</p>
-                )}
+                {handsFeedback && <p className="text-xs text-slate-500 mt-1">{handsFeedback}</p>}
               </div>
-            ))}
+            )}
+
+            {bodyScore !== null && (
+              <div className="bg-white rounded-xl border border-slate-200 p-4">
+                <div className="flex justify-between items-center">
+                  <span className="font-bold text-slate-800">上半身・全身</span>
+                  <span className="font-black text-lg text-blue-600">{bodyScore}点</span>
+                </div>
+                {bodyFeedback && <p className="text-xs text-slate-500 mt-1">{bodyFeedback}</p>}
+              </div>
+            )}
+
+            {shoesScore !== null && (
+              <div className="bg-white rounded-xl border border-slate-200 p-4">
+                <div className="flex justify-between items-center">
+                  <span className="font-bold text-slate-800">靴・足元</span>
+                  <span className="font-black text-lg text-blue-600">{shoesScore}点</span>
+                </div>
+                {shoesFeedback && <p className="text-xs text-slate-500 mt-1">{shoesFeedback}</p>}
+              </div>
+            )}
 
             {skippedParts
-              .filter(key => !FACE_PARTS.includes(key))
-              .map(key => {
-                const label = OTHER_PARTS.find(p => p.key === key)?.label || key;
-                return (
-                  <div key={`skip-${key}`} className="bg-slate-50 rounded-xl border border-slate-100 p-4 opacity-70">
-                    <div className="flex justify-between items-center">
-                      <span className="font-medium text-slate-500">{label}</span>
-                      <span className="text-xs font-bold text-slate-400 bg-slate-200 px-2 py-1 rounded">未撮影</span>
-                    </div>
+              .filter(k => !FACE_PARTS.includes(k) && !BODY_PARTS.includes(k) && k !== 'hands' && k !== 'shoes')
+              .map(key => (
+                <div key={`skip-${key}`} className="bg-slate-50 rounded-xl border border-slate-100 p-4 opacity-70">
+                  <div className="flex justify-between items-center">
+                    <span className="font-medium text-slate-500">{key}</span>
+                    <span className="text-xs font-bold text-slate-400 bg-slate-200 px-2 py-1 rounded">未撮影</span>
                   </div>
-                );
-              })}
+                </div>
+              ))}
           </div>
         </div>
 
