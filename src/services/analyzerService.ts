@@ -29,6 +29,11 @@ export async function analyzeGrooming(body: any) {
 
   // Prepare text prompt
   let prompt = `あなたはプロの婚活アドバイザーであり、スタイリストです。提供された画像とセルフチェック結果をもとに、ユーザーの身だしなみを厳しくかつ建設的に診断してください。\n\n`;
+
+  prompt += `【最重要ルール】\n`;
+  prompt += `- 画像が不鮮明・暗すぎる・人物が映っていない・情報が不十分な場合は、その部位を「判定不能」として扱い、スコアを出力しないこと\n`;
+  prompt += `- 「問題が見当たらない」と「判定できない」はまったく別の状態である。情報不足の場合は必ず「判定不能」と返すこと\n`;
+  prompt += `- 必須部位（顔正面・顔側面・手）のうち2部位以上が判定不能な場合は、totalをnullにして "undiagnosable": true を返すこと\n\n`;
   
   prompt += `【フィードバックのトーン】\n`;
   if (tone === 'strict') {
@@ -51,15 +56,19 @@ export async function analyzeGrooming(body: any) {
 
   prompt += `以下の要件を満たすJSONフォーマットで回答してください：\n`;
   prompt += `{
-  "total": 総合スコア (65〜95の整数。100点は不可),
-  "comments": "総合スコアに応じた一言コメント",
+  "undiagnosable": true または false,
+  "undiagnosableReason": "undiagnosableがtrueの場合のみ、理由を日本語で記載（例：顔の画像が不鮮明で判定できませんでした）",
+  "total": 総合スコア（65〜95の整数。100点は不可。undiagnosableがtrueの場合はnull）,
+  "comments": "総合スコアに応じた一言コメント（undiagnosableがtrueの場合はnull）",
   "parts": {
-    // 撮影された部位のみ（faceFront, faceSide, hands, faceSideOpposite, upperBody, fullBody, shoes）の各スコア（65-95）
+    // 判定可能だった部位のみスコア（65〜95）を返す
+    // 判定不能な部位は "undiagnosable" という文字列を返す
+    // 例: "faceFront": 75, "faceSide": "undiagnosable"
   },
   "advice": {
-    "today": ["今日すぐできる改善アクションの配列 (残り1日以下の場合はこれのみ)"],
-    "fewDays": ["2〜3日で解決できるアクションの配列 (残り日数2日以上の場合は含める)"],
-    "longTerm": ["長期的に取り組むべきアクションの配列 (残り日数4日以上の場合は含める)"]
+    "today": ["今日すぐできる改善アクション（残り1日以下の場合はこれのみ）"],
+    "fewDays": ["2〜3日で解決できるアクション（残り日数2日以上の場合のみ）"],
+    "longTerm": ["長期的に取り組むべきアクション（残り日数4日以上の場合のみ）"]
   }
 }`;
 

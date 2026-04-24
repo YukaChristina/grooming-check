@@ -98,6 +98,13 @@ export default function Step4Camera() {
       }
 
       const data = await response.json();
+
+      if (data.undiagnosable) {
+        setIsAnalyzing(false);
+        alert(data.undiagnosableReason || '画像が不鮮明なため診断できませんでした。再度撮影してください。');
+        return;
+      }
+
       useAppStore.getState().setScore(data);
       setIsAnalyzing(false);
       nextStep();
