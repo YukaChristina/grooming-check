@@ -21,14 +21,17 @@ export interface Photos {
 }
 
 export interface ScoreData {
-  total: number;
-  comments: string;
-  parts: Record<string, number>;
+  total: number | null;
+  comments: string | null;
+  parts: Record<string, number | string>;
+  partFeedback?: Record<string, string>;
   advice: {
     today: string[];
     fewDays: string[];
     longTerm: string[];
   };
+  undiagnosable?: boolean;
+  undiagnosableReason?: string;
 }
 
 interface AppState {

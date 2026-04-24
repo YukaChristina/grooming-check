@@ -57,13 +57,17 @@ export async function analyzeGrooming(body: any) {
   prompt += `以下の要件を満たすJSONフォーマットで回答してください：\n`;
   prompt += `{
   "undiagnosable": true または false,
-  "undiagnosableReason": "undiagnosableがtrueの場合のみ、理由を日本語で記載（例：顔の画像が不鮮明で判定できませんでした）",
+  "undiagnosableReason": "undiagnosableがtrueの場合のみ、理由を日本語で記載",
   "total": 総合スコア（65〜95の整数。100点は不可。undiagnosableがtrueの場合はnull）,
   "comments": "総合スコアに応じた一言コメント（undiagnosableがtrueの場合はnull）",
   "parts": {
+    // キー名は必ず faceFront / faceSide / faceSideOpposite / hands（handは不可）/ upperBody / fullBody / shoes を使うこと
     // 判定可能だった部位のみスコア（65〜95）を返す
     // 判定不能な部位は "undiagnosable" という文字列を返す
-    // 例: "faceFront": 75, "faceSide": "undiagnosable"
+  },
+  "partFeedback": {
+    // 判定可能だった部位のみ、一言フィードバックを日本語で返す（20〜40文字程度）
+    // 例: "faceFront": "清潔感があり好印象です", "hands": "爪が少し長めです"
   },
   "advice": {
     "today": ["今日すぐできる改善アクション（残り1日以下の場合はこれのみ）"],
@@ -109,6 +113,16 @@ export async function analyzeGrooming(body: any) {
   }
 
   const jsonResult = JSON.parse(resultText);
+
+  // AIが 'hand' を返した場合に 'hands' へ正規化
+  if (jsonResult.parts?.hand !== undefined && jsonResult.parts?.hands === undefined) {
+    jsonResult.parts.hands = jsonResult.parts.hand;
+    delete jsonResult.parts.hand;
+  }
+  if (jsonResult.partFeedback?.hand !== undefined && jsonResult.partFeedback?.hands === undefined) {
+    jsonResult.partFeedback.hands = jsonResult.partFeedback.hand;
+    delete jsonResult.partFeedback.hand;
+  }
 
   return jsonResult;
 }
