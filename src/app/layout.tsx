@@ -7,6 +7,13 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: "身だしなみチェックアプリ",
   description: "お見合い・デート前の身だしなみAI診断",
+  manifest: '/manifest.webmanifest',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: '身だしなみ',
+  },
+  themeColor: '#2563eb',
 };
 
 export default function RootLayout({
