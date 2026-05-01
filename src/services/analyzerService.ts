@@ -1,18 +1,28 @@
 import OpenAI from 'openai';
+import sharp from 'sharp';
+
+async function resizeImage(base64: string): Promise<string> {
+  const matches = base64.match(/^data:(image\/\w+);base64,(.+)$/);
+  if (!matches) return base64;
+  const [, , data] = matches;
+
+  const buffer = Buffer.from(data, 'base64');
+  const resized = await sharp(buffer)
+    .resize(1024, 1024, { fit: 'inside', withoutEnlargement: true })
+    .jpeg({ quality: 85 })
+    .toBuffer();
+
+  return `data:image/jpeg;base64,${resized.toString('base64')}`;
+}
 
 export async function analyzeGrooming(body: any) {
   if (!process.env.OPENAI_API_KEY) {
     console.warn('OpenAI APIキーが設定されていないため、モックデータを返します。');
-    await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 2000));
     return {
       total: 82,
       comments: "全体的に清潔感がありますが、あと一歩でさらに好印象になります！",
-      parts: {
-        faceFront: 85,
-        faceSide: 80,
-        hands: 75,
-        upperBody: 90
-      },
+      parts: { faceFront: 85, faceSide: 80, hands: 75, upperBody: 90 },
       advice: {
         today: ["爪を短く切る", "鼻毛の最終チェック"],
         fewDays: ["美容室で少し髪を整える"],
@@ -21,20 +31,31 @@ export async function analyzeGrooming(body: any) {
     };
   }
 
-  const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-  });
+  const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
   const { photos, selfCheck, daysRemaining, tone, skippedParts } = body;
 
-  // Prepare text prompt
+  // 画像リサイズ（長辺1024px以下・JPEG品質85）
+  const resizedPhotos: Record<string, string> = {};
+  for (const [part, base64] of Object.entries(photos)) {
+    if (typeof base64 === 'string' && base64.startsWith('data:image')) {
+      resizedPhotos[part] = await resizeImage(base64);
+    }
+  }
+
   let prompt = `あなたはプロの婚活アドバイザーであり、スタイリストです。提供された画像とセルフチェック結果をもとに、ユーザーの身だしなみを厳しくかつ建設的に診断してください。\n\n`;
 
   prompt += `【最重要ルール】\n`;
   prompt += `- 画像が不鮮明・暗すぎる・人物が映っていない・情報が不十分な場合は、その部位を「判定不能」として扱い、スコアを出力しないこと\n`;
   prompt += `- 「問題が見当たらない」と「判定できない」はまったく別の状態である。情報不足の場合は必ず「判定不能」と返すこと\n`;
-  prompt += `- 必須部位（顔正面・顔側面・手）のうち2部位以上が判定不能な場合は、totalをnullにして "undiagnosable": true を返すこと\n\n`;
-  
+  prompt += `- 必須部位（顔正面・顔側面・手）のうち1部位でも判定不能な場合は、totalをnullにして "undiagnosable": true を返すこと\n\n`;
+
+  prompt += `【スコアリングのルール】\n`;
+  prompt += `- 問題が1つのみの場合：5〜10点減点\n`;
+  prompt += `- 問題が2つの場合：15〜20点減点（単純合算より大きく減点）\n`;
+  prompt += `- 問題が3つ以上の場合：25点以上減点\n`;
+  prompt += `- 「清潔感のなさ」「身だしなみの乱れ」は婚活の文脈では特に重く評価すること\n\n`;
+
   prompt += `【フィードバックのトーン】\n`;
   if (tone === 'strict') {
     prompt += `ズバリ率直に、問題点を指摘してください。「〜はNGです」「〜は必須です」等の表現を使用してください。\n\n`;
@@ -76,28 +97,19 @@ export async function analyzeGrooming(body: any) {
   }
 }`;
 
-  // Prepare messages array for OpenAI
   const messages: any[] = [
     { role: "system", content: "You are a helpful assistant designed to output pure JSON." },
     {
       role: "user",
-      content: [
-        { type: "text", text: prompt }
-      ]
+      content: [{ type: "text", text: prompt }]
     }
   ];
 
-  // Append images
-  for (const [part, base64] of Object.entries(photos)) {
-    if (typeof base64 === 'string' && base64.startsWith('data:image')) {
-      messages[1].content.push({
-        type: "image_url",
-        image_url: {
-          url: base64,
-          detail: "auto"
-        }
-      });
-    }
+  for (const [, base64] of Object.entries(resizedPhotos)) {
+    messages[1].content.push({
+      type: "image_url",
+      image_url: { url: base64, detail: "auto" }
+    });
   }
 
   const response = await openai.chat.completions.create({
@@ -108,9 +120,7 @@ export async function analyzeGrooming(body: any) {
   });
 
   const resultText = response.choices[0].message.content;
-  if (!resultText) {
-    throw new Error("No response from OpenAI");
-  }
+  if (!resultText) throw new Error("No response from OpenAI");
 
   const jsonResult = JSON.parse(resultText);
 
