@@ -3,7 +3,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useAppStore, Photos } from '@/store/useAppStore';
 import Webcam from 'react-webcam';
-import { Camera, SkipForward, AlertCircle } from 'lucide-react';
+import { Camera, SkipForward, AlertCircle, RefreshCw } from 'lucide-react';
 
 type CaptureStep = 'guide' | 'camera' | 'quality_check' | 'confirm' | 'error';
 
@@ -14,14 +14,13 @@ interface PartConfig {
   desc: string;
 }
 
+// ④ 全身撮影・反対側面を削除
 const parts: PartConfig[] = [
-  { id: 'faceFront', title: '顔（正面）', required: true, desc: '清潔感・全体印象・眉毛を確認します。明るい場所で撮影してください。' },
-  { id: 'faceSide', title: '顔（側面）', required: true, desc: 'ひげの剃り残しがないか確認します。横を向いて撮影してください。' },
-  { id: 'hands', title: '手・爪', required: true, desc: '爪の長さ・汚れ・ささくれを確認します。手の甲側を撮影してください。' },
-  { id: 'faceSideOpposite', title: '顔（反対側面）', required: false, desc: '反対側のひげも確認します。' },
-  { id: 'upperBody', title: '上半身', required: false, desc: '服装・清潔感を確認します。鏡を使って撮影するかスキップしてください。' },
-  { id: 'fullBody', title: '全身', required: false, desc: 'コーディネート全体を確認します。鏡を使って撮影するかスキップしてください。' },
-  { id: 'shoes', title: '靴・足元', required: false, desc: '靴の汚れ・手入れを確認します。真上から撮影してください。' },
+  { id: 'faceFront',  title: '顔（正面）', required: true,  desc: '清潔感・全体印象・眉毛を確認します。明るい場所で撮影してください。' },
+  { id: 'faceSide',   title: '顔（側面）', required: true,  desc: 'ひげの剃り残しがないか確認します。右を向いて撮影してください。' },
+  { id: 'hands',      title: '手・爪',     required: true,  desc: '爪の長さ・汚れ・ささくれを確認します。手の甲側を撮影してください。' },
+  { id: 'upperBody',  title: '上半身',     required: false, desc: '服装・清潔感を確認します。内カメラ・外カメラを切り替えて撮影してください。' },
+  { id: 'shoes',      title: '靴・足元',   required: false, desc: '靴の汚れ・手入れを確認します。真上から撮影してください。' },
 ];
 
 const SHOT_GUIDES: Record<string, { title: string; instruction: string; tips: string[] }> = {
@@ -32,13 +31,8 @@ const SHOT_GUIDES: Record<string, { title: string; instruction: string; tips: st
   },
   faceSide: {
     title: '顔（側面）を撮影',
-    instruction: 'ひげの状態が確認できるよう、横顔を撮影してください',
-    tips: ['耳から顎のラインが見えるように', 'ひげが映る角度で撮影する'],
-  },
-  faceSideOpposite: {
-    title: '顔（反対側面）を撮影',
-    instruction: '反対側の横顔を撮影してください',
-    tips: ['耳から顎のラインが見えるように', 'ひげが映る角度で撮影する'],
+    instruction: '右を向いてください。5秒後に自動撮影します',
+    tips: ['耳から顎のラインが見えるように', 'ひげが映る角度で撮影する', 'スマホは正面を向けたまま顔だけ右へ'],
   },
   hands: {
     title: '手・爪を撮影',
@@ -48,12 +42,7 @@ const SHOT_GUIDES: Record<string, { title: string; instruction: string; tips: st
   upperBody: {
     title: '上半身を撮影',
     instruction: '服装が全体的に映るように撮影してください',
-    tips: ['鏡を使って撮影する', '明るい場所で撮影する'],
-  },
-  fullBody: {
-    title: '全身を撮影',
-    instruction: 'コーディネート全体が映るように撮影してください',
-    tips: ['全身が映る鏡の前で撮影する', '足元まで含めて映す'],
+    tips: ['内カメラ・外カメラはボタンで切り替え可能', '明るい場所で撮影する'],
   },
   shoes: {
     title: '靴・足元を撮影',
@@ -100,8 +89,57 @@ function FaceOverlay() {
   return (
     <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
       <div className="w-56 h-72 rounded-full border-4 border-white opacity-80" />
-      <p className="mt-4 text-white text-sm text-center px-4">
-        顔を枠内に収めてください
+      <p className="mt-4 text-white text-sm text-center px-4">顔を枠内に収めてください</p>
+    </div>
+  );
+}
+
+// ① 横顔カウントダウンオーバーレイ（右向き矢印＋テキスト＋カウント）
+function SideFaceCountdownOverlay({ countdown }: { countdown: number }) {
+  return (
+    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none bg-black/30">
+      <p className="text-white text-xl font-bold drop-shadow mb-1">右を向いてください</p>
+      <span
+        className="text-white drop-shadow"
+        style={{ fontSize: '5rem', lineHeight: 1 }}
+      >
+        →
+      </span>
+      <div className="mt-4 w-20 h-20 rounded-full bg-black/60 flex items-center justify-center">
+        <span className="text-white text-5xl font-bold">{countdown}</span>
+      </div>
+    </div>
+  );
+}
+
+// ② 手形オーバーレイ（手の甲側・爪が見える向き）
+function HandOverlay() {
+  return (
+    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+      <svg
+        viewBox="0 0 100 120"
+        className="w-36 h-44 opacity-80"
+        fill="none"
+        stroke="white"
+        strokeWidth="3.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        {/* Pinky */}
+        <path d="M 8 86 L 8 60 Q 8 48 16 48 Q 24 48 24 60 L 24 82" />
+        {/* Ring */}
+        <path d="M 26 82 L 26 48 Q 26 36 34 36 Q 42 36 42 48 L 42 82" />
+        {/* Middle */}
+        <path d="M 44 82 L 44 42 Q 44 30 52 30 Q 60 30 60 42 L 60 82" />
+        {/* Index */}
+        <path d="M 62 82 L 62 48 Q 62 36 70 36 Q 78 36 78 48 L 78 82" />
+        {/* Thumb */}
+        <path d="M 80 82 L 80 62 Q 80 50 87 50 Q 94 52 93 66 L 88 86" />
+        {/* Palm */}
+        <path d="M 8 86 Q 5 104 8 110 Q 12 116 50 116 Q 88 116 92 110 Q 95 104 88 86" />
+      </svg>
+      <p className="mt-2 text-white text-sm text-center px-4 drop-shadow">
+        手・爪を枠内に映してください
       </p>
     </div>
   );
@@ -161,22 +199,33 @@ export default function Step4Camera() {
   const [errorReason, setErrorReason] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
+  // ③ 上半身カメラ向き切り替え
+  const [cameraFacingOverride, setCameraFacingOverride] = useState<'user' | 'environment' | null>(null);
   const webcamRef = useRef<Webcam>(null);
   const isCapturingRef = useRef(false);
 
   const currentPart = parts[currentIndex];
   const guide = SHOT_GUIDES[currentPart.id];
 
-  const frontCameraParts: (keyof Photos)[] = ['faceFront', 'faceSide', 'faceSideOpposite'];
-  const facingMode = frontCameraParts.includes(currentPart.id) ? 'user' : 'environment';
-  const showFaceOverlay = ['faceFront', 'faceSide'].includes(currentPart.id);
-  const isSideFacePart = ['faceSide', 'faceSideOpposite'].includes(currentPart.id);
+  const frontCameraParts: (keyof Photos)[] = ['faceFront', 'faceSide'];
+  const defaultFacingMode = frontCameraParts.includes(currentPart.id) ? 'user' : 'environment';
+  const effectiveFacingMode = cameraFacingOverride ?? defaultFacingMode;
 
-  // カウントダウン開始：横顔撮影でカメラが開いたとき
+  const showFaceOverlay = ['faceFront', 'faceSide'].includes(currentPart.id);
+  const isSideFacePart = currentPart.id === 'faceSide';
+  const isUpperBody = currentPart.id === 'upperBody';
+  const isHandsPart = currentPart.id === 'hands';
+
+  // パートが変わったらカメラ向きオーバーライドをリセット
+  useEffect(() => {
+    setCameraFacingOverride(null);
+  }, [currentIndex]);
+
+  // ① カウントダウン開始：横顔撮影でカメラが開いたとき（5秒）
   useEffect(() => {
     if (captureStep === 'camera' && isSideFacePart) {
       isCapturingRef.current = false;
-      setCountdown(3);
+      setCountdown(5);
     } else {
       setCountdown(null);
     }
@@ -384,31 +433,45 @@ export default function Step4Camera() {
 
         {isSideFacePart && (
           <p className="text-xs text-slate-500 text-center">
-            横を向くと {countdown ?? 0} 秒後に自動撮影します
+            右を向いてください。{countdown ?? 0} 秒後に自動撮影します
           </p>
         )}
 
         <div className="w-full bg-slate-900 rounded-2xl overflow-hidden shadow-lg relative h-96 flex items-center justify-center">
           <Webcam
-            key={facingMode}
+            key={`${currentPart.id}-${effectiveFacingMode}`}
             audio={false}
             ref={webcamRef}
             screenshotFormat="image/jpeg"
-            videoConstraints={{ facingMode: { ideal: facingMode } }}
+            videoConstraints={{ facingMode: { ideal: effectiveFacingMode } }}
             className="w-full h-full object-cover"
           />
+
           {currentPart.required && (
             <div className="absolute top-4 left-4 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded shadow">
               必須
             </div>
           )}
-          {showFaceOverlay && <FaceOverlay />}
-          {countdown !== null && countdown > 0 && (
-            <div className="absolute inset-0 flex flex-col items-center justify-end pb-6 pointer-events-none">
-              <div className="w-20 h-20 rounded-full bg-black/60 flex items-center justify-center mb-2">
-                <span className="text-white text-5xl font-bold">{countdown}</span>
-              </div>
-            </div>
+
+          {/* ③ 上半身：カメラ切り替えボタン */}
+          {isUpperBody && (
+            <button
+              onClick={() => setCameraFacingOverride(m => m === 'user' ? 'environment' : 'user')}
+              className="absolute top-4 right-4 bg-black/60 text-white text-xs px-3 py-1.5 rounded-full flex items-center gap-1.5"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span>{effectiveFacingMode === 'user' ? '内カメラ' : '外カメラ'}</span>
+            </button>
+          )}
+
+          {showFaceOverlay && !isSideFacePart && <FaceOverlay />}
+
+          {/* ② 手形オーバーレイ */}
+          {isHandsPart && <HandOverlay />}
+
+          {/* ① 横顔カウントダウンオーバーレイ */}
+          {isSideFacePart && countdown !== null && countdown > 0 && (
+            <SideFaceCountdownOverlay countdown={countdown} />
           )}
         </div>
 
@@ -417,7 +480,7 @@ export default function Step4Camera() {
           className="w-full py-4 rounded-xl font-bold text-white bg-blue-600 flex items-center justify-center space-x-2"
         >
           <Camera className="w-5 h-5" />
-          <span>{countdown !== null ? '今すぐ撮影' : '撮影する'}</span>
+          <span>{isSideFacePart && countdown !== null ? '今すぐ撮影' : '撮影する'}</span>
         </button>
       </div>
     );
