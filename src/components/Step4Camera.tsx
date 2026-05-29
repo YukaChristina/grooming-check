@@ -5,7 +5,7 @@ import { useAppStore, Photos } from '@/store/useAppStore';
 import Webcam from 'react-webcam';
 import { Camera, SkipForward, AlertCircle, RefreshCw } from 'lucide-react';
 
-type CaptureStep = 'guide' | 'camera' | 'quality_check' | 'confirm' | 'error';
+type CaptureStep = 'guide' | 'camera' | 'captured' | 'quality_check' | 'confirm' | 'error';
 
 interface PartConfig {
   id: keyof Photos;
@@ -203,6 +203,7 @@ export default function Step4Camera() {
   const [cameraFacingOverride, setCameraFacingOverride] = useState<'user' | 'environment' | null>(null);
   const webcamRef = useRef<Webcam>(null);
   const isCapturingRef = useRef(false);
+  const isSideFacePartRef = useRef(false);
 
   const currentPart = parts[currentIndex];
   const guide = SHOT_GUIDES[currentPart.id];
@@ -216,9 +217,10 @@ export default function Step4Camera() {
   const isUpperBody = currentPart.id === 'upperBody';
   const isHandsPart = currentPart.id === 'hands';
 
-  // パートが変わったらカメラ向きオーバーライドをリセット
+  // パートが変わったらカメラ向きオーバーライドをリセット＆ref更新
   useEffect(() => {
     setCameraFacingOverride(null);
+    isSideFacePartRef.current = currentPart.id === 'faceSide';
   }, [currentIndex]);
 
   // ① カウントダウン開始：横顔撮影でカメラが開いたとき（5秒）
@@ -267,14 +269,29 @@ export default function Step4Camera() {
     }
 
     setTempImage(imageSrc);
-    setCaptureStep('quality_check');
 
-    const result = await checkImageQuality(imageSrc);
-    if (result.ok) {
-      setCaptureStep('confirm');
+    if (isSideFacePartRef.current) {
+      // 横顔：チェックマーク画面を1.5秒表示しながら品質チェックを並行実行
+      setCaptureStep('captured');
+      const [result] = await Promise.all([
+        checkImageQuality(imageSrc),
+        new Promise<void>(r => setTimeout(r, 1500)),
+      ]);
+      if (result.ok) {
+        setCaptureStep('confirm');
+      } else {
+        setErrorReason(result.reason ?? '');
+        setCaptureStep('error');
+      }
     } else {
-      setErrorReason(result.reason ?? '');
-      setCaptureStep('error');
+      setCaptureStep('quality_check');
+      const result = await checkImageQuality(imageSrc);
+      if (result.ok) {
+        setCaptureStep('confirm');
+      } else {
+        setErrorReason(result.reason ?? '');
+        setCaptureStep('error');
+      }
     }
     isCapturingRef.current = false;
   }, []);
@@ -484,6 +501,27 @@ export default function Step4Camera() {
           <Camera className="w-5 h-5" />
           <span>{isSideFacePart && countdown !== null ? '今すぐ撮影' : '撮影する'}</span>
         </button>
+      </div>
+    );
+  }
+
+  if (captureStep === 'captured') {
+    return (
+      <div className="flex flex-col items-center justify-center h-96 space-y-5 animate-in fade-in duration-200">
+        <div className="w-36 h-36 bg-green-500 rounded-full flex items-center justify-center shadow-xl">
+          <svg
+            viewBox="0 0 24 24"
+            className="w-20 h-20"
+            fill="none"
+            stroke="white"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+        </div>
+        <p className="text-xl font-bold text-green-600">撮影完了！</p>
       </div>
     );
   }
