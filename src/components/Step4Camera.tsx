@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { useAppStore, Photos } from '@/store/useAppStore';
 import Webcam from 'react-webcam';
 import { Camera, SkipForward, AlertCircle } from 'lucide-react';
@@ -160,7 +160,9 @@ export default function Step4Camera() {
   const [tempImage, setTempImage] = useState('');
   const [errorReason, setErrorReason] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [countdown, setCountdown] = useState<number | null>(null);
   const webcamRef = useRef<Webcam>(null);
+  const isCapturingRef = useRef(false);
 
   const currentPart = parts[currentIndex];
   const guide = SHOT_GUIDES[currentPart.id];
@@ -168,6 +170,29 @@ export default function Step4Camera() {
   const frontCameraParts: (keyof Photos)[] = ['faceFront', 'faceSide', 'faceSideOpposite'];
   const facingMode = frontCameraParts.includes(currentPart.id) ? 'user' : 'environment';
   const showFaceOverlay = ['faceFront', 'faceSide'].includes(currentPart.id);
+  const isSideFacePart = ['faceSide', 'faceSideOpposite'].includes(currentPart.id);
+
+  // カウントダウン開始：横顔撮影でカメラが開いたとき
+  useEffect(() => {
+    if (captureStep === 'camera' && isSideFacePart) {
+      isCapturingRef.current = false;
+      setCountdown(3);
+    } else {
+      setCountdown(null);
+    }
+  }, [captureStep, currentPart.id]);
+
+  // カウントダウンのティック
+  useEffect(() => {
+    if (countdown === null || countdown <= 0) return;
+    const timer = setTimeout(() => setCountdown(c => (c !== null ? c - 1 : null)), 1000);
+    return () => clearTimeout(timer);
+  }, [countdown]);
+
+  // カウントダウン0で自動撮影
+  useEffect(() => {
+    if (countdown === 0) capture();
+  }, [countdown]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const advanceToNextPart = async () => {
     if (currentIndex < parts.length - 1) {
@@ -182,8 +207,15 @@ export default function Step4Camera() {
   };
 
   const capture = useCallback(async () => {
+    if (isCapturingRef.current) return;
+    isCapturingRef.current = true;
+    setCountdown(null);
+
     const imageSrc = webcamRef.current?.getScreenshot();
-    if (!imageSrc) return;
+    if (!imageSrc) {
+      isCapturingRef.current = false;
+      return;
+    }
 
     setTempImage(imageSrc);
     setCaptureStep('quality_check');
@@ -195,6 +227,7 @@ export default function Step4Camera() {
       setErrorReason(result.reason ?? '');
       setCaptureStep('error');
     }
+    isCapturingRef.current = false;
   }, []);
 
   const handleConfirmOk = async () => {
@@ -349,6 +382,12 @@ export default function Step4Camera() {
 
         <h2 className="text-2xl font-bold text-slate-800">{currentPart.title}</h2>
 
+        {isSideFacePart && (
+          <p className="text-xs text-slate-500 text-center">
+            横を向くと {countdown ?? 0} 秒後に自動撮影します
+          </p>
+        )}
+
         <div className="w-full bg-slate-900 rounded-2xl overflow-hidden shadow-lg relative h-96 flex items-center justify-center">
           <Webcam
             key={facingMode}
@@ -364,6 +403,13 @@ export default function Step4Camera() {
             </div>
           )}
           {showFaceOverlay && <FaceOverlay />}
+          {countdown !== null && countdown > 0 && (
+            <div className="absolute inset-0 flex flex-col items-center justify-end pb-6 pointer-events-none">
+              <div className="w-20 h-20 rounded-full bg-black/60 flex items-center justify-center mb-2">
+                <span className="text-white text-5xl font-bold">{countdown}</span>
+              </div>
+            </div>
+          )}
         </div>
 
         <button
@@ -371,7 +417,7 @@ export default function Step4Camera() {
           className="w-full py-4 rounded-xl font-bold text-white bg-blue-600 flex items-center justify-center space-x-2"
         >
           <Camera className="w-5 h-5" />
-          <span>撮影する</span>
+          <span>{countdown !== null ? '今すぐ撮影' : '撮影する'}</span>
         </button>
       </div>
     );
