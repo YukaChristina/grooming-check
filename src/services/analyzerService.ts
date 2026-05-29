@@ -35,10 +35,13 @@ export async function analyzeGrooming(body: any) {
 
   const { photos, selfCheck, daysRemaining, tone, skippedParts } = body;
 
+  // UIから削除した部位は診断対象から除外
+  const ACTIVE_PARTS = ['faceFront', 'faceSide', 'hands', 'upperBody', 'shoes'];
+
   // 画像リサイズ（長辺1024px以下・JPEG品質85）
   const resizedPhotos: Record<string, string> = {};
   for (const [part, base64] of Object.entries(photos)) {
-    if (typeof base64 === 'string' && base64.startsWith('data:image')) {
+    if (ACTIVE_PARTS.includes(part) && typeof base64 === 'string' && base64.startsWith('data:image')) {
       resizedPhotos[part] = await resizeImage(base64);
     }
   }
@@ -83,7 +86,7 @@ export async function analyzeGrooming(body: any) {
   "total": 総合スコア（65〜95の整数。100点は不可。undiagnosableがtrueの場合はnull）,
   "comments": "総合スコアに応じた一言コメント（undiagnosableがtrueの場合はnull）",
   "parts": {
-    // キー名は必ず faceFront / faceSide / faceSideOpposite / hands（handは不可）/ upperBody / fullBody / shoes を使うこと
+    // キー名は必ず faceFront / faceSide / hands（handは不可）/ upperBody / shoes を使うこと
     // 判定可能だった部位のみスコア（65〜95）を返す
     // 判定不能な部位は "undiagnosable" という文字列を返す
   },

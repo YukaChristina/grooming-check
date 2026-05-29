@@ -112,33 +112,33 @@ function SideFaceCountdownOverlay({ countdown }: { countdown: number }) {
   );
 }
 
-// ② 手形オーバーレイ（手の甲側・爪が見える向き）
+// ② 手形オーバーレイ（手の甲側・爪が見える向き）― リアルサイズ
 function HandOverlay() {
   return (
     <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
       <svg
-        viewBox="0 0 100 120"
-        className="w-36 h-44 opacity-80"
-        fill="none"
+        viewBox="0 0 120 160"
+        className="w-56 h-72 drop-shadow-lg"
         stroke="white"
-        strokeWidth="3.5"
+        strokeWidth="2.5"
         strokeLinecap="round"
         strokeLinejoin="round"
+        fill="rgba(255,255,255,0.10)"
       >
-        {/* Pinky */}
-        <path d="M 8 86 L 8 60 Q 8 48 16 48 Q 24 48 24 60 L 24 82" />
-        {/* Ring */}
-        <path d="M 26 82 L 26 48 Q 26 36 34 36 Q 42 36 42 48 L 42 82" />
-        {/* Middle */}
-        <path d="M 44 82 L 44 42 Q 44 30 52 30 Q 60 30 60 42 L 60 82" />
-        {/* Index */}
-        <path d="M 62 82 L 62 48 Q 62 36 70 36 Q 78 36 78 48 L 78 82" />
-        {/* Thumb */}
-        <path d="M 80 82 L 80 62 Q 80 50 87 50 Q 94 52 93 66 L 88 86" />
+        {/* Pinky — 最短・左端 */}
+        <rect x="3"  y="54" width="20" height="48" rx="10" />
+        {/* Ring — 中長 */}
+        <rect x="26" y="36" width="22" height="66" rx="11" />
+        {/* Middle — 最長・中央 */}
+        <rect x="50" y="20" width="22" height="82" rx="11" />
+        {/* Index — 中長 */}
+        <rect x="74" y="36" width="22" height="66" rx="11" />
+        {/* Thumb — 短め・右端 */}
+        <rect x="98" y="60" width="19" height="44" rx="9.5" />
         {/* Palm */}
-        <path d="M 8 86 Q 5 104 8 110 Q 12 116 50 116 Q 88 116 92 110 Q 95 104 88 86" />
+        <rect x="3"  y="90" width="114" height="62" rx="20" />
       </svg>
-      <p className="mt-2 text-white text-sm text-center px-4 drop-shadow">
+      <p className="mt-3 text-white text-sm text-center px-4 drop-shadow font-medium">
         手・爪を枠内に映してください
       </p>
     </div>
@@ -445,6 +445,8 @@ export default function Step4Camera() {
             screenshotFormat="image/jpeg"
             videoConstraints={{ facingMode: { ideal: effectiveFacingMode } }}
             className="w-full h-full object-cover"
+            // 横顔撮影はミラー反転を解除して「右を向く＝画面でも右」に統一
+            style={isSideFacePart ? { transform: 'scaleX(-1)' } : undefined}
           />
 
           {currentPart.required && (
