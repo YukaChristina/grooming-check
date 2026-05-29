@@ -7,7 +7,7 @@ const questions: { key: keyof SelfCheckAnswers; text: string; desc: string }[] =
   { key: 'noseHair', text: '鼻毛の処理はできていますか？', desc: '鏡で明るい場所で確認しましょう。' },
   { key: 'bodyOdor', text: '体臭・口臭が気になりませんか？', desc: 'デオドラントや歯磨きなどのケアを行いましたか？' },
   { key: 'haircut', text: '美容室・理容室に行きましたか？', desc: '直近2〜3週間以内の来店が目安です。' },
-  { key: 'hairWax', text: '整髪料はつけすぎていませんか？', desc: 'テカリすぎず、自然なセットを心がけましょう。' },
+  { key: 'hairWax', text: '整髪料はつけすぎていませんか？（鏡でテカリを確認）', desc: 'テカリすぎず、自然なセットを心がけましょう。' },
 ];
 
 export default function Step3SelfCheck() {

@@ -48,7 +48,8 @@ export async function analyzeGrooming(body: any) {
   prompt += `【最重要ルール】\n`;
   prompt += `- 画像が不鮮明・暗すぎる・人物が映っていない・情報が不十分な場合は、その部位を「判定不能」として扱い、スコアを出力しないこと\n`;
   prompt += `- 「問題が見当たらない」と「判定できない」はまったく別の状態である。情報不足の場合は必ず「判定不能」と返すこと\n`;
-  prompt += `- 必須部位（顔正面・顔側面・手）のうち1部位でも判定不能な場合は、totalをnullにして "undiagnosable": true を返すこと\n\n`;
+  prompt += `- 必須部位（顔正面・顔側面・手）のうち1部位でも判定不能な場合は、totalをnullにして "undiagnosable": true を返すこと\n`;
+  prompt += `- 整髪料のつけすぎは画像から判定しないこと。照明の反射や髪質をテカリと誤認識するため、セルフチェック結果のみに基づいてアドバイスすること\n\n`;
 
   prompt += `【スコアリングのルール】\n`;
   prompt += `- 問題が1つのみの場合：5〜10点減点\n`;
@@ -69,7 +70,7 @@ export async function analyzeGrooming(body: any) {
   prompt += `- 鼻毛の処理: ${selfCheck.noseHair ? 'できている' : 'できていない'}\n`;
   prompt += `- 体臭・口臭対策: ${selfCheck.bodyOdor ? '気にならない/対策済み' : '気になる/未対策'}\n`;
   prompt += `- 美容室来店(直近2-3週間): ${selfCheck.haircut ? '行った' : '行っていない'}\n`;
-  prompt += `- 整髪料のつけすぎ: ${selfCheck.hairWax ? 'つけすぎている' : '適量'}\n\n`;
+  prompt += `- 整髪料のつけすぎ（本人申告・セルフチェックのみ、画像判定不可）: ${selfCheck.hairWax ? 'つけすぎている' : '適量'}\n\n`;
 
   prompt += `【未撮影（スキップ）部位】\n`;
   prompt += skippedParts.length > 0 ? skippedParts.join(', ') : 'なし';
