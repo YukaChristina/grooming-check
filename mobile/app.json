@@ -1,0 +1,48 @@
+{
+  "expo": {
+    "name": "身だしなみチェック",
+    "slug": "grooming-check-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon_image.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.yukachristina.groomingcheck",
+      "infoPlist": {
+        "NSCameraUsageDescription": "身だしなみの写真を撮影してAI診断を行うためにカメラを使用します。"
+      }
+    },
+    "android": {
+      "package": "com.yukachristina.groomingcheck",
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "@react-native-community/datetimepicker",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "身だしなみの写真を撮影してAI診断を行うためにカメラを使用します。"
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/icon_image.png",
+          "imageWidth": 220,
+          "resizeMode": "contain",
+          "backgroundColor": "#ffffff"
+        }
+      ]
+    ]
+  }
+}
